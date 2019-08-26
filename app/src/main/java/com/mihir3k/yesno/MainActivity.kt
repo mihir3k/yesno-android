@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
 
         val yesNoApiService = YesNoApiService.create()
         CoroutineScope(Dispatchers.IO).launch {
-            val result = yesNoApiService.getAnswer()
+            val result = yesNoApiService.getResult()
             withContext(Dispatchers.Main) {
                 try {
                     if (result.isSuccessful) {
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateView(result: Response<Model.Result>) {
+    private fun updateView(result: Response<Result>) {
         api_answer.text = result.body()?.answer?.toUpperCase(Locale.getDefault())
 
         Glide.with(this)

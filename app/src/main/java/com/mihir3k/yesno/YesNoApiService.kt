@@ -8,7 +8,7 @@ import retrofit2.http.GET
 interface YesNoApiService {
 
     @GET("api")
-    suspend fun getAnswer(): Response<Model.Result>
+    suspend fun getResult(): Response<Result>
 
     companion object {
         fun create(): YesNoApiService {
