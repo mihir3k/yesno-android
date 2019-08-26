@@ -12,18 +12,13 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.gif.GifDrawable
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.Disposable
-import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.*
+import retrofit2.Response
+import java.lang.Exception
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
-
-    private var disposable: Disposable? = null
-
-    private val yesNoApiService by lazy {
-        YesNoApiService.create()
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,12 +28,14 @@ class MainActivity : AppCompatActivity() {
 
         constraint_layout.setOnTouchListener(object : View.OnTouchListener {
             private val gestureDetector =
-                GestureDetector(applicationContext, object : GestureDetector.SimpleOnGestureListener() {
-                    override fun onDoubleTap(e: MotionEvent): Boolean {
-                        showAnswer()
-                        return super.onDoubleTap(e)
-                    }
-                })
+                GestureDetector(
+                    applicationContext,
+                    object : GestureDetector.SimpleOnGestureListener() {
+                        override fun onDoubleTap(e: MotionEvent): Boolean {
+                            showAnswer()
+                            return super.onDoubleTap(e)
+                        }
+                    })
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 gestureDetector.onTouchEvent(event)
@@ -52,21 +49,34 @@ class MainActivity : AppCompatActivity() {
         api_answer.visibility = View.GONE
         progress_bar.visibility = View.VISIBLE
 
-        disposable = yesNoApiService.getAnswer()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(
-                { result -> updateView(result) },
-                { error -> Toast.makeText(this, error.message, Toast.LENGTH_LONG).show() }
-            )
+        val yesNoApiService = YesNoApiService.create()
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = yesNoApiService.getAnswer()
+            withContext(Dispatchers.Main) {
+                try {
+                    if (result.isSuccessful) {
+                        updateView(result)
+                    } else {
+                        Toast.makeText(
+                            applicationContext,
+                            result.code().toString(),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(applicationContext, e.message.toString(), Toast.LENGTH_LONG)
+                        .show()
+                }
+            }
+        }
     }
 
-    private fun updateView(result: Model.Result) {
-        api_answer.text = result.answer.toUpperCase()
+    private fun updateView(result: Response<Model.Result>) {
+        api_answer.text = result.body()?.answer?.toUpperCase(Locale.getDefault())
 
         Glide.with(this)
             .asGif()
-            .load(result.image)
+            .load(result.body()?.image)
             .centerCrop()
             .listener(object : RequestListener<GifDrawable> {
                 override fun onLoadFailed(
@@ -93,10 +103,5 @@ class MainActivity : AppCompatActivity() {
                 }
             })
             .into(api_image)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        disposable?.dispose()
     }
 }
